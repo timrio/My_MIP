@@ -1,4 +1,7 @@
-def dual_simplex_python(A,b,c, basis_indexes, non_basis_indexes):
+import numpy as np
+from numpy.linalg import inv
+
+def dual_simplex(A,b,c, basis_indexes, non_basis_indexes, number_of_variables,number_of_constraints):
     # initialize dual simplex 
     keep_going = True
     while keep_going:
@@ -44,4 +47,4 @@ def dual_simplex_python(A,b,c, basis_indexes, non_basis_indexes):
                 non_basis_indexes[entering_index], basis_indexes[exiting_index] = basis_indexes[exiting_index],non_basis_indexes[entering_index]
     # compute current optimal value 
     current_optimal_value = np.dot(pi,b)
-    return
+    return current_solution, current_optimal_value, H, basis_indexes, non_basis_indexes

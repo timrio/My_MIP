@@ -22,16 +22,34 @@ class Variable:
         return f"Variable({self.name}, lb={self.lb}, ub={self.ub}, type={self.vtype})"
 
     def __add__(self, other):
-        return Expression()._add_variable(self)._add(other)
+        return Expression()._add_variable(self).__add__(other)
 
     def __radd__(self, other):
-        return Expression()._add_variable(self)._add(other)
+        return Expression()._add_variable(self).__add__(other)
 
     def __mul__(self, other):
         return Expression()._add_variable(self, other)
 
     def __rmul__(self, other):
         return Expression()._add_variable(self, other)
+
+    def __le__(self, other):
+        if isinstance(other, (int, float)):
+            # Create an expression for the variable
+            expr = Expression()._add_variable(self)
+            # Return a constraint with the expression and the constant
+            return Constraint(expr, '<=', other)
+        else:
+            raise TypeError("Right-hand side of <= must be a number")
+
+    def __ge__(self, other):
+        if isinstance(other, (int, float)):
+            # Create an expression for the variable
+            expr = Expression()._add_variable(self)
+            # Return a constraint with the expression and the constant
+            return Constraint(expr, '>=', other)
+        else:
+            raise TypeError("Right-hand side of <= must be a number")
 
 
 class Expression:
@@ -97,3 +115,12 @@ class Expression:
 
     def __eq__(self, other):
         return Constraint(self, '==', other)
+
+
+class Objective:
+    def __init__(self, expression, sense):
+        self.expression = expression  # The linear expression to be optimized
+        self.sense = sense            # 'minimize' or 'maximize'
+
+    def __repr__(self):
+        return f"Objective({self.expression}, {self.sense})"

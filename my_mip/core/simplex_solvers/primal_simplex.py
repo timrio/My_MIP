@@ -1,4 +1,8 @@
-def simplex_iteration(A,b,c, basis_indexes, non_basis_indexes):   
+import numpy as np
+from numpy.linalg import inv
+
+
+def primal_simplex(A,b,c, basis_indexes, non_basis_indexes):   
     if any(b<0):           
         print("cannot find initial basis")
         return False
@@ -40,4 +44,4 @@ def simplex_iteration(A,b,c, basis_indexes, non_basis_indexes):
 
     # compute current optimal value 
     current_optimal_value = np.dot(pi,b)
-    return
+    return current_solution, current_optimal_value, H, basis_indexes, non_basis_indexes
