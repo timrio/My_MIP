@@ -1,24 +1,25 @@
 import numpy as np
 from numpy.linalg import inv
+from my_mip.solver.node import Node
 
 
-def primal_simplex(A,b,c, basis_indexes, non_basis_indexes):   
-    if any(b<0):           
+def primal_simplex(node:Node):   
+    if any(node.b<0):           
         print("cannot find initial basis")
         return False
 
     keep_going = True
 
     while keep_going:
-        A_b, A_n = A[:,basis_indexes], A[:,non_basis_indexes]
-        c_b, c_n = c[basis_indexes], c[non_basis_indexes]
+        A_b, A_n = node.A[:,node.basis_indexes], node.A[:,node.non_basis_indexes]
+        c_b, c_n = node.c[node.basis_indexes], node.c[node.non_basis_indexes]
 
         if np.linalg.det(A_b) == 0:
             return 'matrice non inversible'
 
         A_b_inv = inv(A_b)
         pi = np.dot(c_b,A_b_inv) 
-        current_solution = np.dot(A_b_inv,b)
+        current_solution = np.dot(A_b_inv,node.b)
         
         # express x basis according to xn
         # x_b = x_b_opt - H @ x_n
@@ -40,8 +41,10 @@ def primal_simplex(A,b,c, basis_indexes, non_basis_indexes):
             exiting_index = np.argmin([value if H[i, entering_index]>0 else np.inf for i,value in enumerate(ratio)])
 
             # permute entering and exiting values
-            non_basis_indexes[entering_index], basis_indexes[exiting_index] = basis_indexes[exiting_index],non_basis_indexes[entering_index]
+            node.non_basis_indexes[entering_index], node.basis_indexes[exiting_index] = node.basis_indexes[exiting_index],node.non_basis_indexes[entering_index]
 
     # compute current optimal value 
-    current_optimal_value = np.dot(pi,b)
-    return current_solution, current_optimal_value, H, basis_indexes, non_basis_indexes
+    current_optimal_value = np.dot(pi,node.b)
+    node.current_solution = current_solution
+    node.current_optimal_value = current_optimal_value
+    return node

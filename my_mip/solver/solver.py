@@ -1,19 +1,17 @@
 from .constraints_and_var import Variable, Constraint, Objective, Expression
-from my_mip.core.cutting_planes.gomory_cuts import find_gomory_cuts, add_gomory_cuts_to_model
-from my_mip.core.simplex_solvers.dual_simplex import dual_simplex
-from my_mip.core.simplex_solvers.primal_simplex import primal_simplex
 import numpy as np
 from numpy.linalg import inv
+from my_mip.solver.branch_and_bound import BranchAndBound
+from my_mip.solver.node import Node
 
 
-class Model:
+class Model(BranchAndBound):
     def __init__(self):
         self.variables = []
         self.constraints = []
         self.objective = None
-        self.H = None
-        self.current_optimal_value = None
-        self.current_solution = None
+        self.initial_basis_indexes = []
+        super().__init__()
 
 
     def NewBoolVar(self, name):
@@ -49,12 +47,11 @@ class Model:
             raise ValueError("Sense must be 'minimize' or 'maximize'")
         self.objective = Objective(expression, sense)
 
-    def define_matrices(self):
+    def create_root_node(self):
         # Initialize c, A, and b
         c = [0] * len(self.variables)
         A = []
         b = []
-
         # Define c vector based on the objective function
         for i, var in enumerate(self.variables):
             coeff = self.objective.expression.terms.get(var, 0)
@@ -89,40 +86,22 @@ class Model:
             b_value = constraint.rhs if constraint.sense == '<=' else -constraint.rhs
             b.append(b_value)
 
-        self.A = np.array(A)
-        self.b = np.array(b)
-        self.c = np.array(c)
-
         # initialize basis_indexes as the slack variables
-        self.basis_indexes = list(range(len(self.variables)-len(self.constraints), len(self.variables)))
-        self.non_basis_indexes = list(range(len(self.variables)-len(self.constraints)))
+        basis_indexes = list(range(len(self.variables)-len(self.constraints), len(self.variables)))
+        non_basis_indexes = list(range(len(self.variables)-len(self.constraints)))
+        return Node(A, b, c, basis_indexes, non_basis_indexes, variables=self.variables, constraints=self.constraints)
 
-        return 
 
-
-    @property
-    def number_of_variables(self): 
-        return self.A.shape[1]
-
-    @property
-    def number_of_constraints(self):
-        return self.A.shape[0]
 
 
     def solve(self):
-        self.define_matrices()
+        root_node = self.create_root_node()
+        self.initial_basis_indexes = root_node.basis_indexes
 
-        # reach first optimal relaxed solution with simplex
-        self.current_solution, self.current_optimal_value, self.H, self.basis_indexes, self.non_basis_indexes = primal_simplex(self.A, self.b, self.c, self.basis_indexes, self.non_basis_indexes)
+        best_solution = self.branch_and_bound(root_node)
 
-        # if the solution is not integer, add gomory cuts and resolve
-        while not np.allclose(self.current_solution, np.round(self.current_solution)):
-            # Find Gomory cuts
-            gomory_cuts = find_gomory_cuts(self)
-            # Add cuts to the model
-            add_gomory_cuts_to_model(self, gomory_cuts)
-            # resolve
-            self.current_solution, self.current_optimal_value, self.H, self.basis_indexes, self.non_basis_indexes = dual_simplex(self.A, self.b, self.c, self.basis_indexes, self.non_basis_indexes, self.number_of_variables, self.number_of_constraints)
+        return best_solution
+
 
 
 

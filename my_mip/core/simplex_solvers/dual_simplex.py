@@ -1,17 +1,18 @@
 import numpy as np
 from numpy.linalg import inv
+from my_mip.solver.node import Node
 
-def dual_simplex(A,b,c, basis_indexes, non_basis_indexes, number_of_variables,number_of_constraints):
+def dual_simplex(node:Node):
     # initialize dual simplex 
     keep_going = True
     while keep_going:
         
-        A_b, A_n = A[:,basis_indexes], A[:,non_basis_indexes]
-        c_b, c_n = c[basis_indexes], c[non_basis_indexes]
+        A_b, A_n = node.A[:,node.basis_indexes], node.A[:,node.non_basis_indexes]
+        c_b, c_n = node.c[node.basis_indexes], node.c[node.non_basis_indexes]
 
         A_b_inv = inv(A_b)
         pi = np.dot(c_b,A_b_inv) 
-        current_solution = np.dot(A_b_inv,b)
+        current_solution = np.dot(A_b_inv,node.b)
         
         # express x basis according to xn
         # x_b = x_b_opt - H @ x_n
@@ -26,7 +27,7 @@ def dual_simplex(A,b,c, basis_indexes, non_basis_indexes, number_of_variables,nu
             # find the variable that will leave, the basis, this is the one the first negative beta
             min_val = np.inf
             exiting_index = None
-            for i in range(number_of_constraints):
+            for i in range(node.number_of_constraints):
                 if current_solution[i] < min_val and current_solution[i]<0:
                     exiting_index = i
                     min_val = current_solution[i]
@@ -38,13 +39,14 @@ def dual_simplex(A,b,c, basis_indexes, non_basis_indexes, number_of_variables,nu
                 # we choose the variable that enters the basis
                 min_val = np.inf
                 entering_index = None
-                for i in range(number_of_variables-number_of_constraints):
+                for i in range(node.number_of_variables-node.number_of_constraints):
                     if H[exiting_index,i] < 0 and reduced_cost[i]/np.abs(H[exiting_index,i]) < min_val:
                         min_val = reduced_cost[i]/np.abs(H[exiting_index,i]) 
                         entering_index = i 
 
                 # permute entering and exiting values
-                non_basis_indexes[entering_index], basis_indexes[exiting_index] = basis_indexes[exiting_index],non_basis_indexes[entering_index]
+                node.non_basis_indexes[entering_index], node.basis_indexes[exiting_index] = node.basis_indexes[exiting_index],node.non_basis_indexes[entering_index]
     # compute current optimal value 
-    current_optimal_value = np.dot(pi,b)
-    return current_solution, current_optimal_value, H, basis_indexes, non_basis_indexes
+    node.current_optimal_value = np.dot(pi,node.b)
+    node.current_solution = current_solution
+    return node
