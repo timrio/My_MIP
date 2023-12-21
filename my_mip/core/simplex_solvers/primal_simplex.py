@@ -3,10 +3,11 @@ from numpy.linalg import inv
 from my_mip.solver.node import Node
 
 
-def primal_simplex(node:Node):   
-    if any(node.b<0):           
-        print("cannot find initial basis")
-        return False
+def primal_simplex(node:Node):  
+    # TODO: refactor to find initial basis 
+    if any(node.b<0):   
+        node.status = "infeasible"        
+        return node
 
     keep_going = True
 
@@ -15,7 +16,8 @@ def primal_simplex(node:Node):
         c_b, c_n = node.c[node.basis_indexes], node.c[node.non_basis_indexes]
 
         if np.linalg.det(A_b) == 0:
-            return 'matrice non inversible'
+            node.status = "infeasible"        
+            return node
 
         A_b_inv = inv(A_b)
         pi = np.dot(c_b,A_b_inv) 
@@ -47,4 +49,5 @@ def primal_simplex(node:Node):
     current_optimal_value = np.dot(pi,node.b)
     node.current_solution = current_solution
     node.current_optimal_value = current_optimal_value
+    node.status = "solved"        
     return node

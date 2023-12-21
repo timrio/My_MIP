@@ -12,6 +12,7 @@ class Node:
         self.current_optimal_value = np.inf
         self.variables=variables
         self.constraints=constraints
+        self.status = "Not solved"
 
     def NewSlackVar(self):
         # Method to create and return a new slack or surplus variable

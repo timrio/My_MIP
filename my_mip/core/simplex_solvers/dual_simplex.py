@@ -33,8 +33,8 @@ def dual_simplex(node:Node):
                     min_val = current_solution[i]
                     break
             if all(val>=0 for val in H[exiting_index,:]):
-                print("model infeasible")
-                break
+                node.status = "infeasible"        
+                return node
             else:
                 # we choose the variable that enters the basis
                 min_val = np.inf
@@ -49,4 +49,5 @@ def dual_simplex(node:Node):
     # compute current optimal value 
     node.current_optimal_value = np.dot(pi,node.b)
     node.current_solution = current_solution
+    node.status = "solved"        
     return node
