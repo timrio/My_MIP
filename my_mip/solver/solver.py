@@ -6,11 +6,12 @@ from my_mip.solver.node import Node
 
 
 class Model(BranchAndBound):
-    def __init__(self):
+    def __init__(self, mip_gap = 0.01):
         self.variables = []
         self.constraints = []
         self.objective = None
         self.initial_basis_indexes = []
+        self.mip_gap = mip_gap
         super().__init__()
 
 
@@ -20,19 +21,19 @@ class Model(BranchAndBound):
         return var
     
     def NewIntegerVar(self, name, lb, ub):
-        var = Variable(name, lb=lb, ub=ub, vtype='integer')
+        var = Variable(name, lb=0, ub=ub, vtype='integer')
         self.variables.append(var)
         return var
 
     def NewContinuousVar(self, name, lb, ub):
-        var = Variable(name, lb=lb, ub=ub, vtype='continuous')
+        var = Variable(name, lb=0, ub=ub, vtype='continuous')
         self.variables.append(var)
         return var
 
     def NewSlackVar(self):
         # Method to create and return a new slack or surplus variable
         # Adjust the implementation as per your requirements
-        slack_var = Variable(f"slack_{len(self.variables)}", lb=0, vtype='continuous')
+        slack_var = Variable(f"slack_{len(self.variables)}", lb=0, vtype='slack')
         return slack_var
 
     def Add(self, constraint):
@@ -80,15 +81,48 @@ class Model(BranchAndBound):
 
                 # Coefficient for slack/surplus variable
                 row.append(1)
+            
 
             # Add row to A matrix and corresponding value to b vector
             A.append(row)
             b_value = constraint.rhs if constraint.sense == '<=' else -constraint.rhs
             b.append(b_value)
 
+            # Adding lower and upper bound constraints for each variable
+        for i, var in enumerate(self.variables):
+            # Lower bound constraint
+            if var.lb >0:
+                for existing_row in A:
+                    existing_row.append(0)
+
+                lower_bound_row = [0] * len(A[-1])
+                lower_bound_row[i] = -1  # Coefficient for the variable
+                lower_bound_row[-1] = 1
+                A.append(lower_bound_row)
+                b.append(-var.lb)
+                slack_var = self.NewSlackVar()
+                self.variables.append(slack_var)
+                c.append(0)  # Slack/surplus variables have zero cost in the objective
+
+
+
+            # Upper bound constraint
+            if var.ub < float('inf'):
+                for existing_row in A:
+                    existing_row.append(0)
+                upper_bound_row = [0] * len(A[-1])
+                upper_bound_row[i] = 1  # Coefficient for the variable
+                upper_bound_row[-1] = 1
+                A.append(upper_bound_row)
+                b.append(var.ub)
+                slack_var = self.NewSlackVar()
+                self.variables.append(slack_var)
+                c.append(0)  # Slack/surplus variables have zero cost in the objective
+
+
         # initialize basis_indexes as the slack variables
-        basis_indexes = list(range(len(self.variables)-len(self.constraints), len(self.variables)))
-        non_basis_indexes = list(range(len(self.variables)-len(self.constraints)))
+        basis_indexes = list(range(len(A[0])-len(A), len(A[0])))
+        non_basis_indexes = list(range(len(A[0])-len(A)))
         return Node(A, b, c, basis_indexes, non_basis_indexes, variables=self.variables, constraints=self.constraints)
 
 
@@ -96,12 +130,25 @@ class Model(BranchAndBound):
 
     def solve(self):
         root_node = self.create_root_node()
-        self.initial_basis_indexes = root_node.basis_indexes
+        self.initial_basis_indexes = root_node.basis_indexes[:]
 
-        best_solution = self.branch_and_bound(root_node)
+        best_node, best_value = self.branch_and_bound(root_node)
 
-        return best_solution
+        self.print_solution(best_node, best_value)
+        return
 
 
 
-
+    def print_solution(self, node, value):
+        if self.objective.sense == 'maximize':
+            value = -value
+        print(f"Optimal value = {value}")
+        for i, var in enumerate(iterable=node.variables):
+            if var.vtype == "slack":
+                continue
+            if not (i in node.basis_indexes):
+                print(f"variable {var.name} = 0")
+                continue
+            position = node.basis_indexes.index(i)
+            value = node.current_solution[position]
+            print(f"variable {var.name} = {np.round(value,2)}")

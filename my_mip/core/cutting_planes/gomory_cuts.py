@@ -14,11 +14,12 @@ def find_gomory_cuts(node: Node):
     for i, basic_value in enumerate(node.current_solution):
         # check if basic value is an int
         if np.round(basic_value,0)!=basic_value:
-            cut = np.zeros(node.number_of_variables)
+            cut = np.zeros(node.number_of_variables + len(gomory_cuts))
             cut_rhs = -(basic_value - np.floor(basic_value))
             for j, val in enumerate(H[i,:]):
                 cut[node.non_basis_indexes[j]] = -(val - np.floor(val))
             gomory_cuts.append((cut, cut_rhs))
+            break
     return gomory_cuts
 
 

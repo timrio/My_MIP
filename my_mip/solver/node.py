@@ -17,7 +17,7 @@ class Node:
     def NewSlackVar(self):
         # Method to create and return a new slack or surplus variable
         # Adjust the implementation as per your requirements
-        slack_var = Variable(f"slack_{len(self.variables)}", lb=0, vtype='continuous')
+        slack_var = Variable(f"slack_{len(self.variables)}", lb=0, vtype='slack')
         return slack_var
 
 

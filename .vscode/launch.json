@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "my_solver",
             "type": "python",
             "request": "launch",
             "program": "test.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "pulp",
+            "type": "python",
+            "request": "launch",
+            "program": "test_pulp.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

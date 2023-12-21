@@ -2,6 +2,9 @@ import numpy as np
 from numpy.linalg import inv
 from my_mip.solver.node import Node
 
+
+M = 1e6  # A large number representing 'M' in the Big M method
+
 def dual_simplex(node:Node):
     # initialize dual simplex 
     keep_going = True
@@ -9,6 +12,9 @@ def dual_simplex(node:Node):
         
         A_b, A_n = node.A[:,node.basis_indexes], node.A[:,node.non_basis_indexes]
         c_b, c_n = node.c[node.basis_indexes], node.c[node.non_basis_indexes]
+        if np.linalg.det(A_b) == 0:
+            node.status = "infeasible"        
+            return node
 
         A_b_inv = inv(A_b)
         pi = np.dot(c_b,A_b_inv) 
@@ -21,7 +27,7 @@ def dual_simplex(node:Node):
         # compute reduced costs
         reduced_cost = c_n - np.dot(pi, A_n)
 
-        if all(current_solution>=0):
+        if all(np.round(current_solution,2)>=0):
             keep_going = False
         else:
             # find the variable that will leave, the basis, this is the one the first negative beta
