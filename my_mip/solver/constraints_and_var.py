@@ -101,7 +101,8 @@ class Expression:
         elif isinstance(other, Variable):
             return self._add_variable(other)
         elif isinstance(other, (int, float)):
-            self.add_term(Variable(f"const_{other}", lb=other, ub=other, vtype='continuous'), other)
+            if other == 0:
+                return self
         return self
     
     def __radd__(self, other):

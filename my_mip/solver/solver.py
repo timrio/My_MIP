@@ -64,8 +64,6 @@ class Model(BranchAndBound):
         for constraint in self.constraints:
             row = [0] * len(self.variables)
             for var, coeff in constraint.expression.terms.items():
-                if constraint.sense == '>=':
-                    coeff = -coeff
                 row[self.variables.index(var)] = coeff
 
             # Handling slack/surplus variables for inequalities
@@ -80,12 +78,15 @@ class Model(BranchAndBound):
                     existing_row.append(0)
 
                 # Coefficient for slack/surplus variable
-                row.append(1)
+                if constraint.sense == '>=':
+                    row.append(-1)
+                else:
+                    row.append(1)
             
 
             # Add row to A matrix and corresponding value to b vector
             A.append(row)
-            b_value = constraint.rhs if constraint.sense == '<=' else -constraint.rhs
+            b_value = constraint.rhs
             b.append(b_value)
 
             # Adding lower and upper bound constraints for each variable
@@ -96,10 +97,10 @@ class Model(BranchAndBound):
                     existing_row.append(0)
 
                 lower_bound_row = [0] * len(A[-1])
-                lower_bound_row[i] = -1  # Coefficient for the variable
-                lower_bound_row[-1] = 1
+                lower_bound_row[i] = 1  # Coefficient for the variable
+                lower_bound_row[-1] = -1
                 A.append(lower_bound_row)
-                b.append(-var.lb)
+                b.append(var.lb)
                 slack_var = self.NewSlackVar()
                 self.variables.append(slack_var)
                 c.append(0)  # Slack/surplus variables have zero cost in the objective

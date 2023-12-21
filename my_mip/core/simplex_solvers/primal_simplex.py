@@ -4,10 +4,6 @@ from my_mip.solver.node import Node
 
 
 def primal_simplex(node:Node):  
-    # TODO: refactor to find initial basis 
-    if any(node.b<0):   
-        node.status = "infeasible"        
-        return node
 
     keep_going = True
 
