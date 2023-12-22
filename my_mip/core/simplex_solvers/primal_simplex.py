@@ -47,3 +47,4 @@ def primal_simplex(node:Node):
     node.current_optimal_value = current_optimal_value
     node.status = "solved"        
     return node
+    

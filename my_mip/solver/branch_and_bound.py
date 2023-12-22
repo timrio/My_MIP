@@ -34,17 +34,20 @@ class BranchAndBound:
         # Add artificial variables
         basis_indexes = []
         initial_cost = node.c.copy()
+        initial_number_of_variables = node.A.shape[1]
+        artificial_index = []
         for i in range(node.number_of_constraints):
             artificial_var = node.NewSlackVar()
             node.variables.append(artificial_var)
             node.A = np.hstack([node.A, [[1] if j == i else [0] for j in range(node.number_of_constraints)]])
             basis_indexes.append(node.A.shape[1] - 1)
+            artificial_index.append(node.A.shape[1] - 1)
         non_basis_indexes = list(set([i for i in range(node.A.shape[1])]) - set(basis_indexes))
         node.basis_indexes = basis_indexes
         node.non_basis_indexes = non_basis_indexes
         # Modify the objective for phase one
         original_objective = node.c.copy()
-        node.c = np.array([0]*len(initial_cost) + [1] * node.number_of_constraints)
+        node.c = np.array([0]*len(initial_cost) + [M] * len(artificial_index))
 
         # Solve the auxiliary problem
         node = primal_simplex(node)
@@ -52,12 +55,24 @@ class BranchAndBound:
         if node.current_optimal_value != 0:
             node.status = "infeasible"
         else:
-            # delete the last variables
-            node.variables = node.variables[:len(node.variables) - node.number_of_constraints]
+            # we keep the new basis variables and remove the artificial variables that are non-basic
+            to_drop = []
+            for i in node.non_basis_indexes:
+                if i in artificial_index:
+                    to_drop.append(i)
+
+            node.variables = [var for i, var in enumerate(node.variables) if i not in to_drop]
+            node.A = np.delete(node.A, to_drop, axis=1)
+            node.non_basis_indexes = list(set(node.non_basis_indexes) - set(to_drop))
+
             node.c = initial_cost
-            node.A = node.A[:, :len(node.variables)]
-            node.non_basis_indexes = list(set([i for i in range(node.A.shape[1])]) - set(node.basis_indexes))
-            # Now node.basis_indexes contains a valid starting basis for the original problem
+            number_of_artificial_kept = 0
+            for i, index in enumerate(node.basis_indexes):
+                if index in artificial_index:
+                    node.basis_indexes[i] = initial_number_of_variables + number_of_artificial_kept
+                    number_of_artificial_kept += 1
+                    node.c = np.array(list(node.c) + [0])
+
 
         return node
 

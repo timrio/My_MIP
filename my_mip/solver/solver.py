@@ -10,7 +10,6 @@ class Model(BranchAndBound):
         self.variables = []
         self.constraints = []
         self.objective = None
-        self.initial_basis_indexes = []
         self.mip_gap = mip_gap
         super().__init__()
 
@@ -120,18 +119,13 @@ class Model(BranchAndBound):
                 self.variables.append(slack_var)
                 c.append(0)  # Slack/surplus variables have zero cost in the objective
 
-
-        # initialize basis_indexes as the slack variables
-        basis_indexes = list(range(len(A[0])-len(A), len(A[0])))
-        non_basis_indexes = list(range(len(A[0])-len(A)))
-        return Node(A, b, c, basis_indexes, non_basis_indexes, variables=self.variables, constraints=self.constraints)
+        return Node(A, b, c, basis_indexes = None, non_basis_indexes=None, variables=self.variables, constraints=self.constraints)
 
 
 
 
     def solve(self):
         root_node = self.create_root_node()
-        self.initial_basis_indexes = root_node.basis_indexes[:]
 
         best_node, best_value = self.branch_and_bound(root_node)
 
