@@ -93,6 +93,7 @@ class BranchAndBound:
                     node.A = np.delete(node.A, initial_index, axis=1)
                     node.c = np.delete(node.c, initial_index)
                     node.b = np.delete(node.b, exiting_index)
+                    node.variables.remove(node.variables[initial_index])
                     node.basis_indexes.remove(node.basis_indexes[exiting_index])
                     original_objective = np.delete(original_objective, initial_index)
                     for i in range(len(node.basis_indexes)):
@@ -185,7 +186,7 @@ class BranchAndBound:
         # Find Gomory cuts
         gomory_cuts = find_gomory_cuts(node)
         # # # Add cuts to the model
-        node = add_gomory_cuts_to_model(node, gomory_cuts)
+        #node = add_gomory_cuts_to_model(node, gomory_cuts)
         # resolve
         node = dual_simplex(node)
         return node

@@ -34,7 +34,6 @@ def dual_simplex(node:Node):
                 if current_solution[i] < min_val and np.round(current_solution[i],5)<0:
                     exiting_index = i
                     min_val = current_solution[i]
-                    break
             if all(np.round(val,5)>=0 for val in H[exiting_index,:]):
                 node.status = "infeasible"        
                 return node
