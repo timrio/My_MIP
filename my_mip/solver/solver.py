@@ -35,6 +35,12 @@ class Model(BranchAndBound):
         slack_var = Variable(f"slack_{len(self.variables)}", lb=0, vtype='slack')
         return slack_var
 
+    def NewArtificialkVar(self):
+        # Method to create and return a new slack or surplus variable
+        # Adjust the implementation as per your requirements
+        slack_var = Variable(f"slack_{len(self.variables)}", lb=0, vtype='artificial')
+        return slack_var
+
     def Add(self, constraint):
         if not isinstance(constraint, Constraint):
             raise ValueError("Argument must be of type Constraint")
@@ -49,6 +55,7 @@ class Model(BranchAndBound):
 
     def create_root_node(self):
         # Initialize c, A, and b
+        basis_indexes = []
         c = [0] * len(self.variables)
         A = []
         b = []
@@ -66,21 +73,38 @@ class Model(BranchAndBound):
                 row[self.variables.index(var)] = coeff
 
             # Handling slack/surplus variables for inequalities
-            if constraint.sense != '==':
-                # Add a slack or surplus variable
+            if constraint.sense == "==":
+                arti_var = self.NewArtificialkVar()
+                self.variables.append(arti_var)
+                c.append(0)  # Slack/surplus variables have zero cost in the objective
+                basis_indexes.append(len(self.variables)-1)
+            elif constraint.sense == ">=":
                 slack_var = self.NewSlackVar()
                 self.variables.append(slack_var)
                 c.append(0)  # Slack/surplus variables have zero cost in the objective
+                arti_var = self.NewArtificialkVar()
+                self.variables.append(arti_var)
+                c.append(0)  # Slack/surplus variables have zero cost in the objective
+                basis_indexes.append(len(self.variables)-1)
+            else:
+                slack_var = self.NewSlackVar()
+                self.variables.append(slack_var)
+                c.append(0)  # Slack/surplus variables have zero cost in the objective
+                basis_indexes.append(len(self.variables)-1)
+
                 
-                # Update existing rows in A to account for the new variable
-                for existing_row in A:
+            # Update existing rows in A to account for the new variable
+            for existing_row in A:
+                existing_row.append(0)
+                if constraint.sense == ">=":
                     existing_row.append(0)
 
-                # Coefficient for slack/surplus variable
-                if constraint.sense == '>=':
-                    row.append(-1)
-                else:
-                    row.append(1)
+            # Coefficient for slack/surplus variable
+            if constraint.sense == '>=':
+                row.append(-1)
+                row.append(1)
+            else:
+                row.append(1)
             
 
             # Add row to A matrix and corresponding value to b vector
@@ -94,15 +118,21 @@ class Model(BranchAndBound):
             if var.lb >0:
                 for existing_row in A:
                     existing_row.append(0)
+                    existing_row.append(0)
 
                 lower_bound_row = [0] * len(A[-1])
                 lower_bound_row[i] = 1  # Coefficient for the variable
-                lower_bound_row[-1] = -1
+                lower_bound_row[-2] = -1
+                lower_bound_row[-1] = 1
                 A.append(lower_bound_row)
                 b.append(var.lb)
                 slack_var = self.NewSlackVar()
                 self.variables.append(slack_var)
                 c.append(0)  # Slack/surplus variables have zero cost in the objective
+                arti_var = self.NewArtificialkVar()
+                self.variables.append(arti_var)
+                c.append(0)  # Slack/surplus variables have zero cost in the objective
+                basis_indexes.append(len(self.variables)-1)
 
 
 
@@ -118,8 +148,8 @@ class Model(BranchAndBound):
                 slack_var = self.NewSlackVar()
                 self.variables.append(slack_var)
                 c.append(0)  # Slack/surplus variables have zero cost in the objective
-
-        return Node(A, b, c, basis_indexes = None, non_basis_indexes=None, variables=self.variables, constraints=self.constraints)
+                basis_indexes.append(len(self.variables)-1)
+        return Node(A, b, c, basis_indexes = basis_indexes, non_basis_indexes=None, variables=self.variables, constraints=self.constraints)
 
 
 

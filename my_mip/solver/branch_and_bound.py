@@ -30,51 +30,122 @@ class BranchAndBound:
     def compute_primal_dual_gap(self, node):
         return (node.current_optimal_value - self.best_objective)/np.abs(self.best_objective)
 
+    def find_suitable_replacement(self, node, artificial_index, artificial_indexes):
+        # Compute the basis inverse and H matrix
+        A_b, A_n = node.A[:, node.basis_indexes], node.A[:, node.non_basis_indexes]
+
+        A_b_inv = inv(A_b)
+
+        H = np.dot(A_b_inv, A_n)
+
+        # Get the row in H corresponding to the artificial variable
+        artificial_row = H[artificial_index, :]
+
+        # Iterate over the columns of A_n to find a suitable replacement
+        for j, coeff in enumerate(artificial_row):
+            if np.round(coeff,5) != 0 and node.non_basis_indexes[j] not in artificial_indexes:  # Check for a non-zero and significant coefficient
+                non_basis_index = node.non_basis_indexes[j]
+                # Ensure that introducing this variable maintains feasibility
+                return non_basis_index
+
+        # If no suitable replacement is found, return None
+        return None
+
+
     def find_initial_basis(self, node):
-        # Add artificial variables
-        basis_indexes = []
         initial_cost = node.c.copy()
-        initial_number_of_variables = node.A.shape[1]
-        artificial_index = []
-        for i in range(node.number_of_constraints):
-            artificial_var = node.NewSlackVar()
-            node.variables.append(artificial_var)
-            node.A = np.hstack([node.A, [[1] if j == i else [0] for j in range(node.number_of_constraints)]])
-            basis_indexes.append(node.A.shape[1] - 1)
-            artificial_index.append(node.A.shape[1] - 1)
-        non_basis_indexes = list(set([i for i in range(node.A.shape[1])]) - set(basis_indexes))
-        node.basis_indexes = basis_indexes
+        non_basis_indexes = list(set([i for i in range(node.A.shape[1])]) - set(node.basis_indexes))
         node.non_basis_indexes = non_basis_indexes
+
         # Modify the objective for phase one
         original_objective = node.c.copy()
-        node.c = np.array([0]*len(initial_cost) + [M] * len(artificial_index))
+        node.c = np.array([0]*node.A.shape[1])
+
+        for i,var in enumerate(node.variables):
+            if var.vtype == "artificial":
+                node.c[i]=M
+
+        artificial_vars = [i for i, var in enumerate(node.variables) if var.vtype == "artificial"]
 
         # Solve the auxiliary problem
-        node = primal_simplex(node)
+        node = primal_simplex(node, artificial_vars=artificial_vars)
 
-        if node.current_optimal_value != 0:
+        if np.round(node.current_optimal_value, 2) != 0:
             node.status = "infeasible"
-        else:
-            # we keep the new basis variables and remove the artificial variables that are non-basic
-            to_drop = []
-            for i in node.non_basis_indexes:
-                if i in artificial_index:
-                    to_drop.append(i)
+            return node
 
-            node.variables = [var for i, var in enumerate(node.variables) if i not in to_drop]
-            node.A = np.delete(node.A, to_drop, axis=1)
-            node.non_basis_indexes = list(set(node.non_basis_indexes) - set(to_drop))
+        basic_artificial_vars = [i for i, var in enumerate(node.variables) if var.vtype == "artificial" and i in node.basis_indexes]
 
-            node.c = initial_cost
-            number_of_artificial_kept = 0
-            for i, index in enumerate(node.basis_indexes):
-                if index in artificial_index:
-                    node.basis_indexes[i] = initial_number_of_variables + number_of_artificial_kept
-                    number_of_artificial_kept += 1
-                    node.c = np.array(list(node.c) + [0])
+        while len(basic_artificial_vars) > 0:
+            exiting_index = basic_artificial_vars.pop(0)
+            exiting_index = node.basis_indexes.index(exiting_index)
+            if np.isclose(node.current_solution[exiting_index], 0, atol=1e-5):
+                # Find a suitable non-basic variable to replace the artificial variable
+                # (This step depends on your specific implementation and pivot rules)
+                entering_index = self.find_suitable_replacement(node, exiting_index, artificial_vars)
+                if entering_index  is not None:
+                    entering_index = node.non_basis_indexes.index(entering_index)
+                    # Perform a pivot operation if a suitable replacement is found
+                    node.non_basis_indexes[entering_index], node.basis_indexes[exiting_index] = node.basis_indexes[exiting_index],node.non_basis_indexes[entering_index]
+                else:
+                    initial_index = node.basis_indexes[exiting_index]
+                    node.A = np.delete(node.A, exiting_index, axis=0)
+                    node.A = np.delete(node.A, initial_index, axis=1)
+                    node.c = np.delete(node.c, initial_index)
+                    node.b = np.delete(node.b, exiting_index)
+                    node.basis_indexes.remove(node.basis_indexes[exiting_index])
+                    original_objective = np.delete(original_objective, initial_index)
+                    for i in range(len(node.basis_indexes)):
+                        if node.basis_indexes[i] > initial_index:
+                            node.basis_indexes[i] -= 1
+                    for i in range(len(node.non_basis_indexes)):
+                        if node.non_basis_indexes[i] > initial_index:
+                            node.non_basis_indexes[i] -= 1
+
+            else:
+                raise Exception("Artificial variable has non-zero value in optimal solution")
+            basic_artificial_vars = [i for i, var in enumerate(node.variables) if var.vtype == "artificial" and i in node.basis_indexes]
+
+        # Reindex basis and non-basis indexes
+        new_basis = []
+        for i in range(len(node.basis_indexes)):
+            if node.variables[node.basis_indexes[i]].vtype != "artificial":
+                new_basis.append(node.basis_indexes[i])
+            else:
+                raise Exception("Artificial variable in basis after phase one")
+        new_non_basis = []
+        for i in range(len(node.non_basis_indexes)):
+            if node.variables[node.non_basis_indexes[i]].vtype != "artificial":
+                new_non_basis.append(node.non_basis_indexes[i])
+        
+        remapping = {}
+        current_index = 0
+        for i, var in enumerate(node.variables):
+            if var.vtype == "artificial":
+                continue
+            remapping[i] = current_index
+            current_index += 1
+
+        # Remove artificial variables from node.variables, node.A, and node.c
+        non_basic_artificial_vars = [i for i, var in enumerate(node.variables) if var.vtype == "artificial" and i in node.non_basis_indexes]
+        node.variables = [var for i, var in enumerate(node.variables) if var.vtype != "artificial"]
+
+
+        node.A = np.delete(node.A, non_basic_artificial_vars, axis=1)
+        node.c = np.delete(node.c, non_basic_artificial_vars)
+
+        # Restore the original objective function
+        original_objective = np.delete(original_objective, non_basic_artificial_vars)
+        node.c = original_objective
+
+
+
+        node.basis_indexes = [remapping.get(i) for i in new_basis]
+        node.non_basis_indexes = [remapping.get(i) for i in new_non_basis]
 
 
         return node
+
 
 
     def branch_and_bound(self, root_node):
@@ -189,7 +260,7 @@ class BranchAndBound:
             Node: The new child node.
         """
         # Create a new row for A corresponding to the additional constraint
-        new_row = [0] * len(parent_node.variables)
+        new_row = [0] * parent_node.A.shape[1]
         for var, coeff in additional_constraint.expression.terms.items():
             var_index = parent_node.variables.index(var)
             new_row[var_index] = coeff

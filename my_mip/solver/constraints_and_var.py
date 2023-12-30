@@ -108,14 +108,44 @@ class Expression:
     def __radd__(self, other):
         return self.__add__(other)
 
-    def __le__(self, other):
-        return Constraint(self, '<=', other)
-
-    def __ge__(self, other):
-        return Constraint(self, '>=', other)
+    def __sub__(self, other):
+        if isinstance(other, Expression):
+            # Create a new expression for the result
+            result = Expression()
+            # Add terms from the current expression
+            for var, coeff in self.terms.items():
+                result.add_term(var, coeff)
+            # Subtract terms from the other expression
+            for var, coeff in other.terms.items():
+                result.add_term(var, -coeff)  # Subtract the coefficients
+            return result
+        elif isinstance(other, (int, float)):
+            # Subtracting a constant from the expression
+            result = Expression()
+            for var, coeff in self.terms.items():
+                result.add_term(var, coeff)
+            result.add_term(Variable("CONSTANT", lb=0, ub=0, vtype='continuous'), -other)
+            return result
+        else:
+            raise ValueError("Subtraction only supported for Expression, int, or float types")
 
     def __eq__(self, other):
-        return Constraint(self, '==', other)
+        if isinstance(other, Expression):
+            return Constraint(self - other, '==', 0)
+        elif isinstance(other, (int, float)):
+            return Constraint(self, '==', other)
+    
+    def __le__(self, other):
+        if isinstance(other, Expression):
+            return Constraint(self - other, '<=', 0)
+        elif isinstance(other, (int, float)):
+            return Constraint(self, '<=', other)
+    
+    def __ge__(self, other):
+        if isinstance(other, Expression):
+            return Constraint(self - other, '>=', 0)
+        elif isinstance(other, (int, float)):
+            return Constraint(self, '>=', other)
 
 
 class Objective:

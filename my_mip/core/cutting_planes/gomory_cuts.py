@@ -42,5 +42,5 @@ def add_gomory_cuts_to_model(node: Node, gomory_cuts):
         new_slack_var = node.NewSlackVar()
         node.c = np.append(node.c, 0)  # Assuming no cost for slack variables
         node.variables.append(new_slack_var)
-        node.basis_indexes.append(len(node.variables) - 1)
+        node.basis_indexes.append(node.A.shape[1] - 1)
     return node

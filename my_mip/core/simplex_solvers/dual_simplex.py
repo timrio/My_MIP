@@ -12,9 +12,6 @@ def dual_simplex(node:Node):
         
         A_b, A_n = node.A[:,node.basis_indexes], node.A[:,node.non_basis_indexes]
         c_b, c_n = node.c[node.basis_indexes], node.c[node.non_basis_indexes]
-        if np.linalg.det(A_b) == 0:
-            node.status = "infeasible"        
-            return node
 
         A_b_inv = inv(A_b)
         pi = np.dot(c_b,A_b_inv) 
@@ -34,11 +31,11 @@ def dual_simplex(node:Node):
             min_val = np.inf
             exiting_index = None
             for i in range(node.number_of_constraints):
-                if current_solution[i] < min_val and current_solution[i]<0:
+                if current_solution[i] < min_val and np.round(current_solution[i],5)<0:
                     exiting_index = i
                     min_val = current_solution[i]
                     break
-            if all(val>=0 for val in H[exiting_index,:]):
+            if all(np.round(val,5)>=0 for val in H[exiting_index,:]):
                 node.status = "infeasible"        
                 return node
             else:
@@ -46,7 +43,7 @@ def dual_simplex(node:Node):
                 min_val = np.inf
                 entering_index = None
                 for i in range(node.number_of_variables-node.number_of_constraints):
-                    if H[exiting_index,i] < 0 and reduced_cost[i]/np.abs(H[exiting_index,i]) < min_val:
+                    if np.round(H[exiting_index,i],5) < 0 and reduced_cost[i]/np.abs(H[exiting_index,i]) < min_val:
                         min_val = reduced_cost[i]/np.abs(H[exiting_index,i]) 
                         entering_index = i 
 
