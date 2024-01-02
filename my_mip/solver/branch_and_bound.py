@@ -105,6 +105,8 @@ class BranchAndBound:
 
             else:
                 raise Exception("Artificial variable has non-zero value in optimal solution")
+            # update current solution
+            node.current_solution = np.dot(inv(node.A[:, node.basis_indexes]), node.b)
             basic_artificial_vars = [i for i, var in enumerate(node.variables) if var.vtype == "artificial" and i in node.basis_indexes]
 
         # Reindex basis and non-basis indexes
@@ -186,7 +188,7 @@ class BranchAndBound:
         # Find Gomory cuts
         gomory_cuts = find_gomory_cuts(node)
         # # # Add cuts to the model
-        #node = add_gomory_cuts_to_model(node, gomory_cuts)
+        node = add_gomory_cuts_to_model(node, gomory_cuts)
         # resolve
         node = dual_simplex(node)
         return node
