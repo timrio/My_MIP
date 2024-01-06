@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "my_solver",
+            "name": "my_solver_cvrp",
             "type": "python",
             "request": "launch",
-            "program": "test.py",
+            "program": "test_cvrp.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "my_solver_sudoku",
+            "type": "python",
+            "request": "launch",
+            "program": "test_sudoku.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },
